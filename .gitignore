@@ -1,6 +1,6 @@
 .pytest_cache
 /.idea/
 /venv/
-/app
 app/media/CACHE/
 app/media/images/
+__pycache__
