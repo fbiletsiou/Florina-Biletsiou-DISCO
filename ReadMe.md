@@ -12,7 +12,27 @@ Requirements for the software and other tools to build, test and push
 - [Python 3](https://www.python.org/)
 - [Django](https://www.djangoproject.com/)
 - [Django REST Framework](https://www.django-rest-framework.org/)
+- [Docker](https://docs.docker.com/get-docker/)
+- [Postgres](https://www.postgresql.org/)
 - [Pytest](https://docs.pytest.org/)
+
+
+### Docker - Database install
+[Install Docker](https://docs.docker.com/get-docker/) for your system and ensure that the Docker daemon is running.
+Then build the docker image and run it:
+
+    docker build . -f Dockerfile --network=host
+    docker-compose up -d 
+
+
+Installing PostgreSQL:
+    
+    (Linux)
+    sudo apt-get update
+    sudo apt-get install python-pip python-dev libpq-dev postgresql postgresql-contrib
+
+(Windows)
+download a compatible [PostgreSQL installer](https://www.postgresql.org/download/windows/) from the official website of PostgreSQL.
 
 ### Running the project
 
