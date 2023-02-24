@@ -8,8 +8,7 @@ COPY requirements.txt /code/
 RUN apt-get update && apt-get upgrade -y
 RUN pip install --upgrade pip
 RUN pip install --no-cache-dir  -r requirements.txt
-RUN pip uninstall PIL
+RUN pip install psycopg2-binary
 RUN pip install  Pillow
 
-
-COPY .. /code/
+COPY . /code/

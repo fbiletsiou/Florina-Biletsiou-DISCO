@@ -21,15 +21,16 @@ Requirements for the software and other tools to build, test and push
 [Install Docker](https://docs.docker.com/get-docker/) for your system and ensure that the Docker daemon is running.
 Then build the docker image and run it:
 
-    docker build . -f Dockerfile --network=host
-    docker-compose up -d 
+    sudo docker build . -f Dockerfile --network=host
+    sudo docker-compose up --build
+    sudo docker-compose up
 
 
-Installing PostgreSQL:
+Troubleshooting:
     
-    (Linux)
-    sudo apt-get update
-    sudo apt-get install python-pip python-dev libpq-dev postgresql postgresql-contrib
+    docker-compose down
+    docker-compose up --force-recreate
+    (port already in use) sudo service postgresql stop
 
 (Windows)
 download a compatible [PostgreSQL installer](https://www.postgresql.org/download/windows/) from the official website of PostgreSQL.
