@@ -1,13 +1,50 @@
+import datetime
+import random
+import string
+import pytz
+import operator
+from functools import reduce
+
+from django.shortcuts import redirect
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import permissions
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from .models import UploadedFile, User
-from .serializers import UploadedFileSerializer, UserSerializer, validate_image_format
+
+from .models import UploadedFile, User, TempUrl
+from .serializers import UserSerializer, validate_image_format, FileBasicSerializer, FilePremiumSerializer, FileEnterpriseSerializer, TempUrlSerializer
+
+
+def randomString(stringLength=20):
+    """Generate a random string of fixed length """
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
+
+
+def get_serializer_for_tier(tier):
+    if tier == 'Enterprise':
+        return FileEnterpriseSerializer
+    elif tier == 'Premium':
+        return FilePremiumSerializer
+    else:
+        return FileBasicSerializer
+
+
+class MultipleFieldLookupMixin(object):
+    def get_object(self):
+        queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        filter = {}
+        for field in self.lookup_fields:
+            filter[field] = self.kwargs[field]
+        q = reduce(operator.or_, (Q(x) for x in filter.items()))
+        return get_object_or_404(queryset, q)
 
 
 class UploadedFileViewset(viewsets.ViewSet):
@@ -20,7 +57,7 @@ class UploadedFileViewset(viewsets.ViewSet):
         Method that lists all uploaded files for the authenticated user
         """
         images = self.queryset.filter(created_by__id=request.user.id)
-        serializer = UploadedFileSerializer(images, context={"request": request}, many=True)
+        serializer = get_serializer_for_tier(request.user.tier)(images, context={"request": request}, many=True)
 
         return Response(serializer.data)
 
@@ -29,11 +66,11 @@ class UploadedFileViewset(viewsets.ViewSet):
         Retrieve the Uploaded image with given id (pk) for authenticated user.
         """
         image_instance = get_object_or_404(self.queryset, pk=pk, created_by__id=request.user.id)
-        serializer = UploadedFileSerializer(image_instance, context={"request": request})
+        serializer = get_serializer_for_tier(request.user.tier)(image_instance, context={"request": request})
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def create(self, request):
+    def post(self, request):
         """
         Method that creates a new uploaded file with the given data
         :param request: new file located at request.data
@@ -49,11 +86,11 @@ class UploadedFileViewset(viewsets.ViewSet):
         new_data = {
             "name": new_file.name,
             "file_format": file_format,
-            "file_size": new_file.size,
-            "image_url": new_file
+            "image_url": new_file,
+            'created_by': request.user.pk
         }
 
-        serializer = UploadedFileSerializer(data=new_data, context={"request": request})
+        serializer = get_serializer_for_tier(request.user.tier)(data=new_data, context={"request": request})
 
         if serializer.is_valid(raise_exception=True):
             serializer.save(created_by=request.user)
@@ -74,11 +111,10 @@ class UploadedFileViewset(viewsets.ViewSet):
         updated_data = {
             "name": updated_file.name,
             "file_format": file_format,
-            "file_size": updated_file.size,
             "image_url": updated_file
         }
 
-        serializer = UploadedFileSerializer(instance=image_instance, data=updated_data, partial=True, context={"request": request})
+        serializer = get_serializer_for_tier(request.user.tier)(instance=image_instance, data=updated_data, partial=True, context={"request": request})
         if serializer.is_valid(raise_exception=True):
             serializer.save(created_by=request.user)
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -91,6 +127,63 @@ class UploadedFileViewset(viewsets.ViewSet):
         image_instance.delete()
 
         return Response({"result": "Image deleted"}, status=status.HTTP_200_OK)
+
+
+class TempUrlViewset(MultipleFieldLookupMixin, viewsets.ModelViewSet):
+    """
+    Generic View for creating and using Temporary Urls for Enterprise Users.
+    """
+    queryset = TempUrl.objects.all()
+    permission_classes = [IsAuthenticated, ]
+    lookup_fields = ('file_id', 'token')
+
+    @action(detail=True, methods=['get'], name='Expiry Link',  url_path='generate', url_name='generate_link')
+    def generate_link(self, request, file_id):
+        """
+        Method that creates a temporary url for an uploaded file for Enterprise Users
+        Expects a query parameter for the number of seconds until expiration (between 300 and 30000).
+        If not given, the default is the maximum option
+        """
+
+        if request.user.tier != 'Enterprise':
+            return Response({"error": "Given account tier does not support this feature"},
+                            status=status.HTTP_403_FORBIDDEN)
+        original_file = get_object_or_404(UploadedFile, pk=file_id)
+
+        link_time = self.request.query_params.get('time', 30000)
+        if 300 > int(link_time) > 30000:
+            return Response({"error": ""},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        req = {
+            'token': randomString(stringLength=20),
+            'expiry_date': datetime.datetime.now() + datetime.timedelta(seconds=link_time)
+        }
+        serializer = TempUrlSerializer(data=req, context={"request": request})
+
+        if serializer.is_valid(raise_exception=True):
+            serializer.save(user=request.user, related_file=original_file)
+
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['get'], lookup_field='token', name='Use Expiry Link', url_name='use')
+    def use(self, request, token):
+        """
+        Method that handles a temporary url for an uploaded file for Enterprise Users
+        If the link is still active, it redirects to the file information
+        """
+        if request.user.tier != 'Enterprise':
+            return Response({"error": "Given account tier does not support this feature"},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # check if this is an existing temporary url
+        temp_url = get_object_or_404(self.queryset, token=token)
+
+        if datetime.datetime.now().replace(tzinfo=pytz.utc) > temp_url.expiry_date:
+            return Response({"error": "This url has expired"},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        return redirect('UploadedFile-detail', temp_url.related_file_id)
 
 
 class UserViewset(viewsets.ReadOnlyModelViewSet):

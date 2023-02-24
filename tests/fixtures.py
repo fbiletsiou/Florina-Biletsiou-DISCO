@@ -41,7 +41,7 @@ def create_jpg_file(db):
     with tempfile.NamedTemporaryFile(suffix='.png') as image_file :
         image.save(image_file)
 
-        return UploadedFile.objects.create(name=image_file.name, file_format=UploadedFile.ValidFileFormat.PNG, file_size=100, image_url=image_file.name)
+        return UploadedFile.objects.create(name=image_file.name, file_format=UploadedFile.ValidFileFormat.PNG, image_url=image_file.name)
 
 
 @pytest.fixture

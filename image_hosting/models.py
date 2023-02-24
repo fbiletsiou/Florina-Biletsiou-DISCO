@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from imagekit.models import ImageSpecField
@@ -27,7 +29,6 @@ class UploadedFile(models.Model):
     name = models.CharField(max_length=50, blank=False, null=False)
     created_by = models.ForeignKey(User,  related_name='images', on_delete=models.CASCADE)
     file_format = models.CharField(max_length=5, default=ValidFileFormat.PNG, choices=ValidFileFormat.choices)
-    file_size = models.IntegerField(null=True)
     date_started = models.DateField(auto_now_add=True)
     last_edited = models.DateField(auto_now=True)
     image_url = models.ImageField(upload_to='images/', blank=False, null=False)
@@ -36,3 +37,18 @@ class UploadedFile(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class TempUrl(models.Model):
+    user = models.ForeignKey(User, related_name='expiry_links', on_delete=models.CASCADE)
+    related_file = models.ForeignKey(UploadedFile, on_delete=models.CASCADE)
+    token = models.CharField(max_length=255)
+    expiry_date = models.DateTimeField(blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = uuid4()
+        return super(TempUrl, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f'for file: {self.related_file} - token: {self.token} - expires: {self.expiry_date}'

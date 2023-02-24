@@ -49,11 +49,18 @@ ALTER ROLE postgres SET default_transaction_isolation TO 'read committed';
 ALTER ROLE postgres SET timezone TO 'UTC';
 
 GRANT ALL ON SCHEMA public TO django_user;
-GRANT ALL PRIVILEGES ON DATABASE image_hosting_db TO postgres;
+GRANT ALL PRIVILEGES ON DATABASE image_hosting_db TO django_user;
 
 ```
 
+To run the database locally, go to `core/settings` and use the database option:
 
+    # FOR LOCAL USE
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            ...
+            ...
 
 
 ### Running the project
