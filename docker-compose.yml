@@ -1,17 +1,4 @@
 services:
-  db:
-    image: postgres
-    volumes:
-      - /data/db:/var/lib/postgresql/data:z
-    environment:
-      - POSTGRES_DB=postgres
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
-    networks:
-      - djangonetwork
-
   web:
     restart: always
     build:
@@ -29,6 +16,18 @@ services:
       - POSTGRES_PASSWORD=postgres
     depends_on:
       - db
+    networks:
+      - djangonetwork
+  db:
+    image: postgres
+    volumes:
+      - /data/db:/var/lib/postgresql/data:z
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
     networks:
       - djangonetwork
 
