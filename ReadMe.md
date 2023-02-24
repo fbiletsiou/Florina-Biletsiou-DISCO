@@ -34,8 +34,27 @@ Troubleshooting:
     docker-compose up --force-recreate
     (port already in use) sudo service postgresql stop
 
-(Windows)
-download a compatible [PostgreSQL installer](https://www.postgresql.org/download/windows/) from the official website of PostgreSQL.
+
+#### Running the database locally
+
+download a compatible [PostgreSQL installer](https://www.postgresql.org/download/windows/) from the official website of PostgreSQL (for windows).
+Log into an interactive Postgres session either by the terminal or pgadmin4 and run:
+
+```postgresql
+CREATE DATABASE image_hosting_db;
+CREATE USER postgres WITH PASSWORD 'postgres';
+
+ALTER ROLE postgres SET client_encoding TO 'utf8';
+ALTER ROLE postgres SET default_transaction_isolation TO 'read committed';
+ALTER ROLE postgres SET timezone TO 'UTC';
+
+GRANT ALL ON SCHEMA public TO django_user;
+GRANT ALL PRIVILEGES ON DATABASE image_hosting_db TO postgres;
+
+```
+
+
+
 
 ### Running the project
 

@@ -85,27 +85,29 @@ REST_FRAMEWORK = {
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+
+# FOR DOCKER USE
 '''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_NAME'),
-        'USER': os.environ.get('POSTGRES_USER'),
+        'NAME': os.environ.get('POSTGRES_NAME', 'image_hosting_db'),
+        'USER': os.environ.get('POSTGRES_USER', 'django_user'),
         'PASSWORD': os.environ.get('POSTGRES_PASSWORD'),
-        'HOST': os.environ.get('POSTGRES_HOST'),
+        'HOST': os.environ.get('POSTGRES_HOST', 'db'),
         'PORT': 5432,
     }
 }
 '''
-
+# FOR LOCAL USE
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres',
+        'NAME': 'image_hosting_db',
+        'USER': 'django_user',
         'PASSWORD': 'postgres',
-        'HOST': 'db',
-        'PORT': '5432',
+        'HOST': 'localhost',
+        'PORT': '',
         'TEST': {
             'NAME': 'test_db',
         },
