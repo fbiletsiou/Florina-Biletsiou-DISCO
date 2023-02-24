@@ -13,9 +13,8 @@ router.register(r'users', viewset=views.UserViewset, basename='User')
 # Additionally, including login URLs for the browsable API.
 urlpatterns = [
     path('', include(router.urls)),
-    re_path(r'^exp/generate/(?P<file_id>[0-9]+)/$', views.TempUrlViewset.as_view({'get': 'generate_link'})),
-    re_path(r'^exp/use/(?P<token>[-a-zA-Z0-9_]+)/$', views.TempUrlViewset.as_view({'get': 'use'})),
+    re_path(r'^exp/generate/(?P<file_id>[0-9]+)/$', views.TempUrlViewset.as_view({'get': 'generate_link'}), name='generate_link'),
+    re_path(r'^exp/use/(?P<token>[-a-zA-Z0-9_]+)/$', views.TempUrlViewset.as_view({'get': 'use'}), name='use_link'),
 
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
-

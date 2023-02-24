@@ -22,23 +22,54 @@ class TestUploadedFileViewsets:
 
     def test_list_view_authorized(self, api_client, get_or_create_token):
         url = reverse('UploadedFile-list')
-        token = get_or_create_token
+        token = get_or_create_token()
         api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
         response = api_client.get(url)
         assert response.status_code == 200
 
     def test_detail_view_unauthorized(self, client):
-        url = reverse('UploadedFile-detail')
+        url = reverse('UploadedFile-detail', kwargs={'pk': 1})
         response = client.get(url)
         assert response.status_code == 401
 
-    def test_detail_view_authorized(self, api_client, get_or_create_token, create_jpg_file):
-        file = create_jpg_file
-        url = reverse('UploadedFile-list', kwargs={'pk': file.pk})
-        token = get_or_create_token
+    def test_detail_view_basic_authorized(self, api_client, get_or_create_token, create_file, get_or_create_basic_user):
+        basic_user = get_or_create_basic_user
+
+        token = get_or_create_token(basic_user)
         api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', basic_user)
+        url = reverse('UploadedFile-detail', kwargs={'pk': file.pk})
         response = api_client.get(url)
         assert response.status_code == 200
+        assert response.data.get('image_thumbnail200') is not None
+        assert response.data.get('image_thumbnail400') is None
+
+    def test_detail_view_premium_authorized(self, api_client, get_or_create_token, create_file, get_or_create_premium_user):
+        premium_user = get_or_create_premium_user
+
+        token = get_or_create_token(premium_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', premium_user)
+        url = reverse('UploadedFile-detail', kwargs={'pk': file.pk})
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.data.get('image_thumbnail200') is not None
+        assert response.data.get('image_thumbnail400') is not None
+
+    def test_detail_view_enterprise_authorized(self, api_client, get_or_create_token, create_file, get_or_create_enterprise_user):
+        enterpise_user = get_or_create_enterprise_user
+
+        token = get_or_create_token(enterpise_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', enterpise_user)
+        url = reverse('UploadedFile-detail', kwargs={'pk': file.pk})
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert response.data.get('image_thumbnail200') is not None
+        assert response.data.get('image_thumbnail400') is not None
 
 
 @pytest.mark.django_db
@@ -49,17 +80,28 @@ class TestUserViewsets:
         response = client.get(url)
         assert response.status_code == 401
 
-    def test_list_view_authorized(self, admin_client):
+    def test_list_view_authorized(self, api_client, get_or_create_admin_token):
+        token = get_or_create_admin_token
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
         url = reverse('User-list')
 
-        response = admin_client.get(url)
+        response = api_client.get(url)
         assert response.status_code == 200
 
-"""
-'^images/(?P<pk>[^/.]+)/$' [name='UploadedFile-detail']>
-'^images/(?P<pk>[^/.]+)\.(?P<format>[a-z0-9]+)/?$' [name='UploadedFile-detail']
-'^users/$' [name='User-list']
-'^users\.(?P<format>[a-z0-9]+)/?$' [name='User-list']
-'^users/(?P<pk>[^/.]+)/$' [name='User-detail']
-'^users/(?P<pk>[^/.]+)\.(?P<format>[a-z0-9]+)/?$' [name='User-detail']
-"""
+    def test_detail_view_unauthorized(self, client):
+        url = reverse('User-detail', kwargs={'pk': 1})
+        response = client.get(url)
+        assert response.status_code == 401
+
+    def test_detail_view_authorized(self, api_client, get_or_create_admin_token):
+        token = get_or_create_admin_token
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        user = User.objects.all().first()
+
+        url = reverse('User-detail', kwargs={'pk': user.pk})
+
+        response = api_client.get(url)
+        assert response.status_code == 200
+        assert list(response.data.keys()) == ['id', 'username', 'tier', 'images', 'expiry_links']

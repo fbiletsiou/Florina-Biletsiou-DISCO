@@ -42,12 +42,13 @@ Log into an interactive Postgres session either by the terminal or pgadmin4 and 
 
 ```postgresql
 CREATE DATABASE image_hosting_db;
-CREATE USER postgres WITH PASSWORD 'postgres';
+CREATE USER django_user WITH PASSWORD 'postgres';
 
-ALTER ROLE postgres SET client_encoding TO 'utf8';
-ALTER ROLE postgres SET default_transaction_isolation TO 'read committed';
-ALTER ROLE postgres SET timezone TO 'UTC';
+ALTER ROLE django_user SET client_encoding TO 'utf8';
+ALTER ROLE django_user SET default_transaction_isolation TO 'read committed';
+ALTER ROLE django_user SET timezone TO 'UTC';
 
+ALTER USER django_user CREATEDB;
 GRANT ALL ON SCHEMA public TO django_user;
 GRANT ALL PRIVILEGES ON DATABASE image_hosting_db TO django_user;
 
@@ -131,9 +132,9 @@ When you're done, close down your Docker container since it can consume a lot of
 
 ## Tests
 
-Unfortunately, I decided to not include my progress when it comes to the testing because the code stated breaking and I didn't want to be more delayed. 
-I am still working on them so there is a possibility that I will have updated this part. 
+To run the tests type from the base directory:
 
+    pytest
 
 ## Authors
 
