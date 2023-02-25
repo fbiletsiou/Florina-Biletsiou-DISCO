@@ -1,6 +1,4 @@
 import datetime
-import random
-import string
 import pytz
 import operator
 from functools import reduce
@@ -17,14 +15,9 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
 
-from .models import UploadedFile, User, TempUrl
+from .models import UploadedFile, User, TempUrl, randomString
 from .serializers import UserSerializer, validate_image_format, FileBasicSerializer, FilePremiumSerializer, FileEnterpriseSerializer, TempUrlSerializer
 
-
-def randomString(stringLength=20):
-    """Generate a random string of fixed length """
-    letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in range(stringLength))
 
 
 def get_serializer_for_tier(tier):
@@ -67,6 +60,11 @@ class UploadedFileViewset(viewsets.ViewSet):
         """
         image_instance = get_object_or_404(self.queryset, pk=pk, created_by__id=request.user.id)
         serializer = get_serializer_for_tier(request.user.tier)(image_instance, context={"request": request})
+
+        try:
+            print(serializer.data)
+        except Exception as e:
+            print(e)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -136,13 +134,15 @@ class TempUrlViewset(MultipleFieldLookupMixin, viewsets.ModelViewSet):
     queryset = TempUrl.objects.all()
     permission_classes = [IsAuthenticated, ]
     lookup_fields = ('file_id', 'token')
+    min_duration = 300
+    max_duration = 30000
 
     @action(detail=True, methods=['get'], name='Expiry Link',  url_path='generate', url_name='generate_link')
     def generate_link(self, request, file_id):
         """
         Method that creates a temporary url for an uploaded file for Enterprise Users
         Expects a query parameter for the number of seconds until expiration (between 300 and 30000).
-        If not given, the default is the maximum option
+        If not given, the default is the minimum option
         """
 
         if request.user.tier != 'Enterprise':
@@ -150,9 +150,9 @@ class TempUrlViewset(MultipleFieldLookupMixin, viewsets.ModelViewSet):
                             status=status.HTTP_403_FORBIDDEN)
         original_file = get_object_or_404(UploadedFile, pk=file_id)
 
-        link_time = self.request.query_params.get('time', 30000)
-        if 300 > int(link_time) > 30000:
-            return Response({"error": ""},
+        link_time = int(self.request.query_params.get('time', 300))
+        if link_time < self.min_duration or link_time > self.max_duration:
+            return Response({"error": f"Time requested: {link_time}. Allowed range: {self.min_duration}-{self.max_duration}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         req = {

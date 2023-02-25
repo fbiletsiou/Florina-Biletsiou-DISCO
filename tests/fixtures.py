@@ -5,8 +5,7 @@ from PIL import Image
 from rest_framework.test import APIClient
 from rest_framework.authtoken.models import Token
 
-from image_hosting.models import UploadedFile
-from image_hosting.models import User
+from image_hosting.models import User, UploadedFile, TempUrl
 
 
 @pytest.fixture
@@ -52,10 +51,11 @@ def create_admin_user(db, django_user_model, test_password):
 
 
 @pytest.fixture
-def create_file(db):
+def create_file(db, tmp_path_factory):
     def _create(extension, created_by):
         image = Image.new('RGB', (100, 100))
-        with tempfile.NamedTemporaryFile(suffix=f'.{extension}') as image_file:
+        temp_dir = 'C:\\Users\\FB\\Documents\\Florina-Biletsiou-DISCO-test\\media\\test_media'
+        with tempfile.NamedTemporaryFile(suffix=f'.{extension}', dir=temp_dir, delete=False) as image_file:
             image.save(image_file)
 
             if extension =='png':
@@ -66,10 +66,23 @@ def create_file(db):
                 return None
 
             new_file = UploadedFile.objects.create(name="test_file",
-                                               file_format=file_format,
-                                               image_url=image_file.name,
-                                               created_by=created_by)
+                                                   file_format=file_format,
+                                                   image_url=image_file.name,
+                                                   created_by=created_by)
             return new_file
+
+    return _create
+
+
+@pytest.fixture
+def create_temp_url(db):
+    def _create(user, token, file, expiry_date):
+
+            new_url = TempUrl.objects.create(user=user,
+                                             related_file=file,
+                                             token=token,
+                                             expiry_date=expiry_date)
+            return new_url
     return _create
 
 

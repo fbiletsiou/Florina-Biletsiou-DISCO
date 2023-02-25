@@ -107,5 +107,8 @@ class TempUrlSerializer(serializers.ModelSerializer):
 
     def get_temp_url(self, obj):
         request = self.context.get('request')
-        _link = f"{request.scheme}://{request.META['HTTP_HOST']}/exp/use/{obj.token}/"
+
+        app_addr = request.META.get('HTTP_HOST', f"{request.META.get('REMOTE_ADDR')}:{request.META.get('SERVER_PORT')}")
+        _link = f"{request.scheme}://{app_addr}/exp/use/{obj.token}/"
+
         return _link
