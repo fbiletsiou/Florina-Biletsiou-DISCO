@@ -1,8 +1,11 @@
+import datetime
+
 import pytest
 
 from django.urls import reverse
 
 from tests.fixtures import *
+from image_hosting.models import randomString
 
 
 @pytest.mark.django_db
@@ -40,6 +43,7 @@ class TestUploadedFileViewsets:
 
         file = create_file('png', basic_user)
         url = reverse('UploadedFile-detail', kwargs={'pk': file.pk})
+
         response = api_client.get(url)
         assert response.status_code == 200
         assert response.data.get('image_thumbnail200') is not None
@@ -105,3 +109,108 @@ class TestUserViewsets:
         response = api_client.get(url)
         assert response.status_code == 200
         assert list(response.data.keys()) == ['id', 'username', 'tier', 'images', 'expiry_links']
+
+
+class TestExpiryLink:
+
+    def test_generating_link_view_unauthorized(self, client):
+        url = reverse('generate_link', kwargs={'file_id': 1})
+        response = client.get(url)
+        assert response.status_code == 401
+
+    def test_generating_link_view_basic_authorized(self, api_client, get_or_create_token, create_file, get_or_create_basic_user):
+        basic_user = get_or_create_basic_user
+
+        token = get_or_create_token(basic_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', basic_user)
+        url = reverse('generate_link', kwargs={'file_id': file.pk})
+        response = api_client.get(url)
+
+        assert response.status_code == 403
+        assert response.data.get('error') == 'Given account tier does not support this feature'
+
+    def test_generating_link_view_premium_authorized(self, api_client, get_or_create_token, create_file, get_or_create_premium_user):
+        premium_user = get_or_create_premium_user
+
+        token = get_or_create_token(premium_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', premium_user)
+        url = reverse('generate_link', kwargs={'file_id': file.pk})
+        response = api_client.get(url)
+
+        assert response.status_code == 403
+        assert response.data.get('error') == 'Given account tier does not support this feature'
+
+    def test_generating_link_view_enterprise_wrong_time_authorized(self, api_client, get_or_create_token, create_file, get_or_create_enterprise_user):
+        enterprise_user = get_or_create_enterprise_user
+
+        token = get_or_create_token(enterprise_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', enterprise_user)
+        url = reverse('generate_link', kwargs={'file_id': file.pk}) + '?time=999999'
+        response = api_client.get(url)
+
+        assert response.status_code == 400
+        assert response.data.get('error') == 'Time requested: 999999. Allowed range: 300-30000'
+
+    def test_generating_link_view_enterprise_authorized(self, api_client, get_or_create_token, create_file, get_or_create_enterprise_user):
+        enterprise_user = get_or_create_enterprise_user
+
+        token = get_or_create_token(enterprise_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', enterprise_user)
+        url = reverse('generate_link', kwargs={'file_id': file.pk}) + '?time=4000'
+        response = api_client.get(url)
+
+        assert response.status_code == 201
+        assert list(response.data.keys()) == ['id', 'expiry_date', 'temp_url']
+
+    def test_using_link_view_unauthorized(self, client):
+        url = reverse('use_link', kwargs={'token': 'qqqqqqqqq'})
+        response = client.get(url)
+        assert response.status_code == 401
+
+    def test_using_link_view_basic_authorized(self, api_client, get_or_create_token, create_file, get_or_create_basic_user):
+        basic_user = get_or_create_basic_user
+
+        token = get_or_create_token(basic_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        url = reverse('use_link', kwargs={'token': 'qqqqqqqqq'})
+        response = api_client.get(url)
+
+        assert response.status_code == 403
+        assert response.data.get('error') == 'Given account tier does not support this feature'
+
+    def test_using_link_view_premium_authorized(self, api_client, get_or_create_token, create_file, get_or_create_premium_user):
+        premium_user = get_or_create_premium_user
+
+        token = get_or_create_token(premium_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        url = reverse('use_link', kwargs={'token': 'qqqqqqqqq'})
+        response = api_client.get(url)
+
+        assert response.status_code == 403
+        assert response.data.get('error') == 'Given account tier does not support this feature'
+
+    def test_using_link_view_enterprise_authorized(self, api_client, get_or_create_token, create_file, create_temp_url, get_or_create_enterprise_user):
+        enterprise_user = get_or_create_enterprise_user
+
+        token = get_or_create_token(enterprise_user)
+        api_client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+
+        file = create_file('png', enterprise_user)
+        temp_url = create_temp_url(user=enterprise_user, token=randomString(stringLength=20),file=file, expiry_date=datetime.datetime.now() + datetime.timedelta(seconds=400))
+
+        url = reverse('use_link', kwargs={'token': temp_url.token})
+        response = api_client.get(url)
+
+        assert response.status_code == 302
+        assert response.url == f"/images/{file.id}/"
+

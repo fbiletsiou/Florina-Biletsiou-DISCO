@@ -1,9 +1,22 @@
+import random
+import string
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from imagekit.models import ImageSpecField
 from imagekit.processors import ResizeToFill
+
+
+def get_thumb_image_path():
+    path = "C:\\Users\\FB\\Documents\\Florina-Biletsiou-DISCO-test\\media\\CACHE\\images\\test_thum"
+    return path
+
+
+def randomString(stringLength=20):
+    """Generate a random string of fixed length """
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(stringLength))
 
 
 class User(AbstractUser):
@@ -32,8 +45,8 @@ class UploadedFile(models.Model):
     date_started = models.DateField(auto_now_add=True)
     last_edited = models.DateField(auto_now=True)
     image_url = models.ImageField(upload_to='images/', blank=False, null=False)
-    image_thumbnail200 = ImageSpecField(source='image_url', processors=[ResizeToFill(100, 200)], format='JPEG', options={'quality': 60})
-    image_thumbnail400 = ImageSpecField(source='image_url', processors=[ResizeToFill(200, 400)], format='JPEG', options={'quality': 60})
+    image_thumbnail200 = ImageSpecField(source='image_url', processors=[ResizeToFill(200, 200)], format='JPEG', options={'quality': 60})
+    image_thumbnail400 = ImageSpecField(source='image_url', processors=[ResizeToFill(400, 400)], format='JPEG', options={'quality': 60})
 
     def __str__(self):
         return self.name
@@ -47,7 +60,7 @@ class TempUrl(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.token:
-            self.token = uuid4()
+            self.token = randomString(stringLength=20)
         return super(TempUrl, self).save(*args, **kwargs)
 
     def __str__(self):

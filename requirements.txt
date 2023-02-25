@@ -2,5 +2,7 @@ Django~=4.1.7
 djangorestframework~=3.14.0
 django-imagekit
 psycopg2-binary
-Pillow
+Pillow~=9.4.0
 pytest-django
+pytest~=7.2.1
+pytz~=2022.7.1
